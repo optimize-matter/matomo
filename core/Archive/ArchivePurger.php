@@ -70,7 +70,7 @@ class ArchivePurger
      */
     private $logger;
 
-    public function __construct(Model $model = null, Date $purgeCustomRangesOlderThan = null, LoggerInterface $logger = null)
+    public function __construct(?Model $model = null, ?Date $purgeCustomRangesOlderThan = null, ?LoggerInterface $logger = null)
     {
         $this->model = $model ?: new Model();
 
@@ -158,12 +158,14 @@ class ArchivePurger
      * @param array $deletedSegments List of segments whose archives should be purged
      * @return int
      */
-    public function purgeDeletedSegmentArchives(Date $dateStart, array $deletedSegments)
+    public function purgeDeletedSegmentArchives(Date $dateStart, array $deletedSegments): int
     {
         if (count($deletedSegments)) {
             $idArchivesToDelete = $this->getDeletedSegmentArchiveIds($dateStart, $deletedSegments);
             return $this->purge($idArchivesToDelete, $dateStart, 'deleted segments');
         }
+
+        return 0;
     }
 
     /**
@@ -173,7 +175,7 @@ class ArchivePurger
      * @param string $reason
      * @return int
      */
-    protected function purge(array $idArchivesToDelete, Date $dateStart, $reason)
+    protected function purge(array $idArchivesToDelete, Date $dateStart, $reason): int
     {
         $deletedRowCount = 0;
         if (!empty($idArchivesToDelete)) {
@@ -264,7 +266,7 @@ class ArchivePurger
      * @param $idArchivesToDelete
      * @return int Number of rows deleted from both numeric + blob table.
      */
-    protected function deleteArchiveIds(Date $date, $idArchivesToDelete)
+    protected function deleteArchiveIds(Date $date, $idArchivesToDelete): int
     {
         $batches      = array_chunk($idArchivesToDelete, 1000);
         $numericTable = ArchiveTableCreator::getNumericTable($date);

@@ -26,15 +26,35 @@ class Mysql extends Db
      * @var PDO
      */
     protected $connection = null;
+
+    /**
+     * @var string
+     */
     protected $dsn;
+
+    /**
+     * @var string
+     */
     private $username;
+
+    /**
+     * @var string
+     */
     private $password;
+
+    /**
+     * @var string|null
+     */
     protected $charset;
 
-    protected $mysqlOptions = array();
+    /**
+     * @var string|null
+     */
+    private $collation;
 
+    protected $mysqlOptions = [];
 
-    protected $activeTransaction = false;
+    protected $activeTransaction = null;
 
     /**
      * Builds the DB object
@@ -58,8 +78,11 @@ class Mysql extends Db
         if (isset($dbInfo['charset'])) {
             $this->charset = $dbInfo['charset'];
             $this->dsn .= ';charset=' . $this->charset;
-        }
 
+            if (!empty($dbInfo['collation'])) {
+                $this->collation = $dbInfo['collation'];
+            }
+        }
 
         if (isset($dbInfo['enable_ssl']) && $dbInfo['enable_ssl']) {
             if (!empty($dbInfo['ssl_key'])) {
@@ -225,7 +248,7 @@ class Mysql extends Db
 
             if (
                 $isSelectQuery
-                && !$this->activeTransaction
+                && null === $this->activeTransaction
                 && $this->isMysqlServerHasGoneAwayError($e)
             ) {
                 // mysql may return a MySQL server has gone away error when trying to execute the query
@@ -330,11 +353,11 @@ class Mysql extends Db
 
     /**
      * Start Transaction
-     * @return string TransactionID
+     * @return ?string TransactionID
      */
     public function beginTransaction()
     {
-        if (!$this->activeTransaction === false) {
+        if ($this->activeTransaction !== null) {
             return;
         }
 
@@ -365,11 +388,11 @@ class Mysql extends Db
      */
     public function commit($xid)
     {
-        if ($this->activeTransaction != $xid || $this->activeTransaction === false) {
+        if ($this->activeTransaction != $xid || $this->activeTransaction === null) {
             return;
         }
 
-        $this->activeTransaction = false;
+        $this->activeTransaction = null;
 
         if (!$this->connection->commit()) {
             throw new DbException("Commit failed");
@@ -384,11 +407,11 @@ class Mysql extends Db
      */
     public function rollBack($xid)
     {
-        if ($this->activeTransaction != $xid || $this->activeTransaction === false) {
+        if ($this->activeTransaction != $xid || $this->activeTransaction === null) {
             return;
         }
 
-        $this->activeTransaction = false;
+        $this->activeTransaction = null;
 
         if (!$this->connection->rollBack()) {
             throw new DbException("Rollback failed");
@@ -409,6 +432,11 @@ class Mysql extends Db
          */
         if (!empty($this->charset)) {
             $sql = "SET NAMES '" . $this->charset . "'";
+
+            if (!empty($this->collation)) {
+                $sql .= " COLLATE '" . $this->collation . "'";
+            }
+
             $this->connection->exec($sql);
         }
     }

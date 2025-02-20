@@ -129,6 +129,17 @@ class API extends \Piwik\Plugin\API
         return $show && !$hide;
     }
 
+    /*
+     * Returns if the visitor profile is enabled for the given site(s)
+     *
+     * @param string|int|array $idSite
+     * @return bool
+     */
+    public function isVisitorProfileEnabled($idSite): bool
+    {
+        return Live::isVisitorProfileEnabled($idSite);
+    }
+
     /**
      * Returns the last visits tracked in the specified website
      * You can define any number of filters: none, one, many or all parameters can be defined
@@ -349,7 +360,7 @@ class API extends \Piwik\Plugin\API
      * @return string
      * @throws Exception
      */
-    public function getMostRecentVisitsDateTime($idSite, string $period = null, string $date = null): string
+    public function getMostRecentVisitsDateTime($idSite, ?string $period = null, ?string $date = null): string
     {
         Piwik::checkUserHasViewAccess($idSite);
 

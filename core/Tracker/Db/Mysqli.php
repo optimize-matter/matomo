@@ -26,7 +26,8 @@ class Mysqli extends Db
     protected $username;
     protected $password;
     protected $charset;
-    protected $activeTransaction = false;
+    protected $collation;
+    protected $activeTransaction = null;
 
     protected $enable_ssl;
     protected $ssl_key;
@@ -35,6 +36,8 @@ class Mysqli extends Db
     protected $ssl_ca_path;
     protected $ssl_cipher;
     protected $ssl_no_verify;
+    protected $paramNb;
+    protected $params;
 
     /**
      * Builds the DB object
@@ -57,11 +60,12 @@ class Mysqli extends Db
             $this->port = (int)$dbInfo['port'];
             $this->socket = null;
         }
+
         $this->dbname = $dbInfo['dbname'];
         $this->username = $dbInfo['username'];
         $this->password = $dbInfo['password'];
-        $this->charset = isset($dbInfo['charset']) ? $dbInfo['charset'] : null;
-
+        $this->charset = $dbInfo['charset'] ?? null;
+        $this->collation = $dbInfo['collation'] ?? null;
 
         if (!empty($dbInfo['enable_ssl'])) {
             $this->enable_ssl = $dbInfo['enable_ssl'];
@@ -133,8 +137,17 @@ class Mysqli extends Db
             throw new DbException("Connect failed: " . mysqli_connect_error());
         }
 
-        if ($this->charset && !mysqli_set_charset($this->connection, $this->charset)) {
-            throw new DbException("Set Charset failed: " . mysqli_error($this->connection));
+        if ($this->charset && $this->collation) {
+            // mysqli_set_charset does not support setting a collation
+            $query = "SET NAMES '" . $this->charset . "' COLLATE '" . $this->collation . "'";
+
+            if (!mysqli_query($this->connection, $query)) {
+                throw new DbException("Set charset/connection collation failed: " . mysqli_error($this->connection));
+            }
+        } elseif ($this->charset) {
+            if (!mysqli_set_charset($this->connection, $this->charset)) {
+                throw new DbException("Set Charset failed: " . mysqli_error($this->connection));
+            }
         }
 
         $this->password = '';
@@ -407,11 +420,11 @@ class Mysqli extends Db
 
     /**
      * Start Transaction
-     * @return string TransactionID
+     * @return ?string TransactionID
      */
     public function beginTransaction()
     {
-        if (!$this->activeTransaction === false) {
+        if ($this->activeTransaction !== null) {
             return;
         }
 
@@ -429,11 +442,11 @@ class Mysqli extends Db
      */
     public function commit($xid)
     {
-        if ($this->activeTransaction != $xid || $this->activeTransaction === false) {
+        if ($this->activeTransaction != $xid || $this->activeTransaction === null) {
             return;
         }
 
-        $this->activeTransaction = false;
+        $this->activeTransaction = null;
 
         if (!$this->connection->commit()) {
             throw new DbException("Commit failed");
@@ -450,11 +463,11 @@ class Mysqli extends Db
      */
     public function rollBack($xid)
     {
-        if ($this->activeTransaction != $xid || $this->activeTransaction === false) {
+        if ($this->activeTransaction != $xid || $this->activeTransaction === null) {
             return;
         }
 
-        $this->activeTransaction = false;
+        $this->activeTransaction = null;
 
         if (!$this->connection->rollback()) {
             throw new DbException("Rollback failed");
